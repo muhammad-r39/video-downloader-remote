@@ -28,11 +28,15 @@ def download_video():
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
 
-        # Serve the file to the user for download
-        return send_file(file_path, as_attachment=True)
+        # Create a public-facing URL for the file (assuming static hosting)
+        file_name = os.path.basename(file_path)
+        public_url = f"https://video-downloader-9ilz.onrender.com/{DOWNLOAD_DIR}/{file_name}"
+
+        return jsonify({"download_url": public_url}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/get-formats', methods=['POST'])
 def get_formats():
@@ -43,10 +47,10 @@ def get_formats():
             return jsonify({"error": "URL is required"}), 400
 
         ydl_opts = {'listformats': True}
-        formats = []
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
+            formats = []
             for fmt in info.get('formats', []):
                 formats.append({
                     'format_id': fmt['format_id'],
@@ -54,10 +58,21 @@ def get_formats():
                     'ext': fmt['ext']
                 })
 
-        return jsonify({"formats": formats}), 200
+        # Extract additional metadata
+        video_title = info.get('title', 'Unknown Title')
+        platform = info.get('extractor', 'Unknown Platform')
+        thumbnail = info.get('thumbnail', '')
+
+        return jsonify({
+            "formats": formats,
+            "title": video_title,
+            "platform": platform,
+            "thumbnail": thumbnail
+        }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == '__main__':
