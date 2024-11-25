@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 import yt_dlp
 import os
 
@@ -46,7 +46,7 @@ def get_formats():
         if not url:
             return jsonify({"error": "URL is required"}), 400
 
-        ydl_opts = {'listformats': True}
+        ydl_opts = {}
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -66,12 +66,18 @@ def get_formats():
         return jsonify({
             "formats": formats,
             "title": video_title,
-            "platform": platform,
+            "platform": platform.capitalize(),  # Capitalize for better readability
             "thumbnail": thumbnail
         }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# Serve files from the downloads directory
+@app.route('/downloads/<path:filename>')
+def serve_file(filename):
+    return send_from_directory(DOWNLOAD_DIR, filename)
 
 
 
