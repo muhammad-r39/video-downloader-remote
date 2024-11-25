@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file
 import yt_dlp
 import os
+import threading
 
 app = Flask(__name__)
 
@@ -8,6 +9,16 @@ app = Flask(__name__)
 DOWNLOAD_DIR = "downloads"
 if not os.path.exists(DOWNLOAD_DIR):
     os.makedirs(DOWNLOAD_DIR)
+
+# Function to delete files after a delay
+def delete_file_later(file_path, delay=60):
+    def delete():
+        try:
+            os.remove(file_path)
+            print(f"Deleted file: {file_path}")
+        except FileNotFoundError:
+            print(f"File not found for deletion: {file_path}")
+    threading.Timer(delay, delete).start()
 
 @app.route('/download', methods=['POST'])
 def download_video():
@@ -28,9 +39,9 @@ def download_video():
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
 
-        # Create a public-facing URL for the file (assuming static hosting)
+        # Get the file name from the path
         file_name = os.path.basename(file_path)
-        public_url = f"https://video-downloader-9ilz.onrender.com/{DOWNLOAD_DIR}/{file_name}"
+        public_url = f"https://video-downloader-9ilz.onrender.com/download/{file_name}"
 
         return jsonify({"download_url": public_url}), 200
 
@@ -74,11 +85,20 @@ def get_formats():
         return jsonify({"error": str(e)}), 500
 
 
-# Serve files from the downloads directory
-@app.route('/downloads/<path:filename>')
+@app.route('/download/<filename>', methods=['GET'])
 def serve_file(filename):
-    return send_from_directory(DOWNLOAD_DIR, filename)
-
+    file_path = os.path.join(DOWNLOAD_DIR, filename)
+    if os.path.exists(file_path):
+        # Serve the file with Content-Disposition header to force download
+        response = send_file(file_path, as_attachment=True)
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # Schedule file deletion after 1 minute
+        delete_file_later(file_path, delay=60)
+        
+        return response
+    else:
+        return jsonify({"error": "File not found"}), 404
 
 
 if __name__ == '__main__':
