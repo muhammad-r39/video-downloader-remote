@@ -11,7 +11,7 @@ if not os.path.exists(DOWNLOAD_DIR):
     os.makedirs(DOWNLOAD_DIR)
 
 # Function to delete files after a delay
-def delete_file_later(file_path, delay=60):
+def delete_file_later(file_path, delay=300):
     def delete():
         try:
             os.remove(file_path)
@@ -92,10 +92,10 @@ def serve_file(filename):
         # Serve the file with Content-Disposition header to force download
         response = send_file(file_path, as_attachment=True)
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
         # Schedule file deletion after 1 minute
         delete_file_later(file_path, delay=60)
-        
+
         return response
     else:
         return jsonify({"error": "File not found"}), 404
